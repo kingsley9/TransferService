@@ -6,7 +6,7 @@ A simple .NET API for managing bank accounts, customers, and transactions (depos
 ## Setup
 1. Clone the repo: `git clone https://github.com/kingsley9/TransferService.git`
 2. Restore dependencies: `dotnet restore`
-3. Run the app: `dotnet run`
+3. Run the app: `dotnet run --project src/TransferService.API`
 
 ## API
 - **Accounts**: Create, get, delete accounts, check balances.
