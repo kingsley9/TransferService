@@ -7,7 +7,7 @@ namespace TransferService.Domain.Entities
 {
     public class Customer
     {
-        public Guid Id { get; private set; }
+        public Guid Id { get; internal set; }
         public CustomerName Name { get; private set; } = new();
         public DateTime DateOfBirth { get; private set; }
         public string PhoneNumber { get; private set; } = String.Empty;

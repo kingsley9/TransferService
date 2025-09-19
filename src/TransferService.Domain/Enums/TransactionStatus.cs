@@ -2,8 +2,8 @@ namespace TransferService.Domain.Enums
 {
     public enum TransactionStatus
     {
-        Success = 0,
-        Failed = 1,
-        InProgress = 2,
+        Pending = 0,
+        Success = 1,
+        Failed = 2,
     }
 }

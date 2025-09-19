@@ -5,7 +5,7 @@ namespace TransferService.Domain.Entities
 {
     public class Account
     {
-        public int AccountId { get; private set; }
+        public int AccountId { get; internal set; }
         public string AccountName { get; set; } = String.Empty;
         public decimal Balance { get; private set; }
         public string Username { get; private set; } = String.Empty;
@@ -135,7 +135,7 @@ namespace TransferService.Domain.Entities
                 );
         }
 
-        private static bool IsValidPin(string pin)
+        public static bool IsValidPin(string pin)
         {
             return !String.IsNullOrEmpty(pin) && pin.Length == 4 && pin.All(char.IsDigit);
         }
@@ -153,6 +153,16 @@ namespace TransferService.Domain.Entities
             var lienDeduction = Math.Min(LienAmount, amount);
             LienAmount -= lienDeduction;
             return lienDeduction;
+        }
+
+        public void Update(string? accountName, AccountType? type, AccountTier? tier)
+        {
+            if (accountName != null)
+                AccountName = accountName;
+            if (type.HasValue)
+                Type = type.Value;
+            if (tier.HasValue)
+                Tier = tier.Value;
         }
     }
 }

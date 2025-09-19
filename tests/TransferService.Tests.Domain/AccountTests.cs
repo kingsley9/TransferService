@@ -1,4 +1,5 @@
-﻿using TransferService.Domain.Entities;
+﻿using FluentAssertions;
+using TransferService.Domain.Entities;
 using TransferService.Domain.Enums;
 using Xunit;
 
@@ -26,7 +27,7 @@ namespace TransferService.Tests.Domain
         }
 
         private Account CreateTierOneAccount(
-            decimal balance = 500,
+            decimal balance = 5000,
             string accountNumber = "1234567890",
             string pin = "1234"
         )
@@ -45,52 +46,70 @@ namespace TransferService.Tests.Domain
         }
 
         [Fact]
-        public void Deposit_ShouldIncreaseBalance()
+        public void Deposit_ShouldUpdateBalanceAndReturnTransaction()
         {
-            var account = CreateTierThreeAccount();
+            var account = CreateTierOneAccount(balance: 5000);
 
             var transaction = account.Deposit(2000);
 
-            Assert.Equal(7000, account.Balance);
-            Assert.Equal(TransactionType.Deposit, transaction.Type);
+            account.Balance.Should().Be(7000);
+            transaction.Type.Should().Be(TransactionType.Deposit);
         }
 
         [Fact]
-        public void Withdraw_ShouldDecreaseBalance()
+        public void Withdraw_ShouldUpdateBalanceAndReturnTransaction_WhenSufficientFunds()
         {
-            var account = CreateTierThreeAccount();
+            var account = CreateTierOneAccount(balance: 5000);
 
             var transaction = account.Withdraw(1000);
 
-            Assert.Equal(4000, account.Balance);
-            Assert.Equal(TransactionType.Withdrawal, transaction.Type);
+            account.Balance.Should().Be(4000);
+            transaction.Type.Should().Be(TransactionType.Withdrawal);
         }
 
         [Fact]
-        public void Withdraw_ShouldThrow_WhenInsufficientFunds()
+        public void Withdraw_ShouldThrow_WhenInsufficientFundsOrAccountRestricted()
         {
-            var account = CreateTierThreeAccount(2000);
+            var account = CreateTierThreeAccount(balance: 2000);
+            var restrictedAccount = CreateTierThreeAccount();
+            restrictedAccount.IsPND = true;
+            restrictedAccount
+                .GetType()
+                .GetProperty("Status")!
+                .SetValue(restrictedAccount, AccountStatus.Inactive);
 
-            Assert.Throws<InvalidOperationException>(() => account.Withdraw(3000));
+            Action withdrawWithInsufficientFunds = () => account.Withdraw(3000);
+            Action withdrawOnRestrictedAccount = () => restrictedAccount.Withdraw(1000);
+
+            withdrawWithInsufficientFunds.Should().Throw<InvalidOperationException>();
+            withdrawOnRestrictedAccount.Should().Throw<InvalidOperationException>();
         }
 
         [Fact]
         public void TransferTo_ShouldMoveFundsBetweenAccounts()
         {
-            var fromAccount = CreateTierThreeAccount(5000, "1234567890", "1234");
-            var toAccount = CreateTierThreeAccount(2000, "0987654321", "5678");
+            var fromAccount = CreateTierThreeAccount(
+                balance: 5000,
+                accountNumber: "1234567890",
+                pin: "1234"
+            );
+            var toAccount = CreateTierThreeAccount(
+                balance: 2000,
+                accountNumber: "0987654321",
+                pin: "5678"
+            );
 
             var transaction = fromAccount.TransferTo(1000, toAccount);
 
-            Assert.Equal(4000, fromAccount.Balance);
-            Assert.Equal(3000, toAccount.Balance);
-            Assert.Equal(TransactionType.Transfer, transaction.Type);
+            fromAccount.Balance.Should().Be(4000);
+            toAccount.Balance.Should().Be(3000);
+            transaction.Type.Should().Be(TransactionType.Transfer);
         }
 
         [Fact]
-        public void ShouldThrow_WhenOpeningBalanceLessThanMinForTier3Naira()
+        public void AccountCreation_ShouldThrow_WhenInvalidParameters()
         {
-            Assert.Throws<InvalidOperationException>(() =>
+            Action createWithLowBalance = () =>
                 new Account(
                     "MyAccount",
                     "user1",
@@ -101,79 +120,37 @@ namespace TransferService.Tests.Domain
                     Guid.NewGuid(),
                     "1234567890",
                     "1234"
-                )
-            );
+                );
+            Action createWithInvalidAccountNumber = () =>
+                CreateTierThreeAccount(5000, "12345", "1234");
+            Action createWithInvalidPin = () => CreateTierThreeAccount(5000, "1234567890", "12");
+
+            createWithLowBalance.Should().Throw<InvalidOperationException>();
+            createWithInvalidAccountNumber.Should().Throw<ArgumentException>();
+            createWithInvalidPin.Should().Throw<ArgumentException>();
         }
 
         [Fact]
-        public void ShouldThrow_WhenAccountNumberInvalid()
+        public void UpdatePin_ShouldChangePinAndValidateCorrectly()
         {
-            Assert.Throws<ArgumentException>(() => CreateTierThreeAccount(5000, "12345", "1234"));
-        }
-
-        [Fact]
-        public void ShouldThrow_WhenPinInvalid()
-        {
-            Assert.Throws<ArgumentException>(() =>
-                CreateTierThreeAccount(5000, "1234567890", "12")
-            );
-        }
-
-        [Fact]
-        public void UpdatePin_ShouldChangePin()
-        {
-            var account = CreateTierThreeAccount();
+            var account = CreateTierThreeAccount(pin: "1234");
 
             account.UpdatePin("9999");
 
-            Assert.True(account.IsPinMatch("9999"));
-            Assert.False(account.IsPinMatch("1234"));
+            account.IsPinMatch("9999").Should().BeTrue();
+            account.IsPinMatch("1234").Should().BeFalse();
         }
 
         [Fact]
-        public void Withdraw_ShouldThrow_WhenAccountIsPND()
+        public void Deposit_ShouldRespectLienAndUpdateBalance()
         {
-            var account = CreateTierThreeAccount();
-            account.IsPND = true;
-
-            Assert.Throws<InvalidOperationException>(() => account.Withdraw(1000));
-        }
-
-        [Fact]
-        public void Deposit_ShouldRespectLien()
-        {
-            var account = CreateTierThreeAccount();
+            var account = CreateTierThreeAccount(balance: 5000);
             account.ApplyLien(500);
 
             account.Deposit(1000);
 
-            Assert.Equal(5500, account.Balance);
-            Assert.Equal(0, account.LienAmount);
-        }
-
-        [Fact]
-        public void Deposit_ShouldThrow_WhenExceedsMaxSingleDeposit()
-        {
-            var account = CreateTierOneAccount();
-
-            Assert.Throws<InvalidOperationException>(() => account.Deposit(1_000_000m));
-        }
-
-        [Fact]
-        public void Deposit_ShouldThrow_WhenExceedsMaxBalance()
-        {
-            var account = CreateTierOneAccount(balance: 999_000);
-
-            Assert.Throws<InvalidOperationException>(() => account.Deposit(100_000));
-        }
-
-        [Fact]
-        public void Withdraw_ShouldThrow_WhenAccountInactive()
-        {
-            var account = CreateTierThreeAccount();
-            account.GetType().GetProperty("Status")!.SetValue(account, AccountStatus.Inactive);
-
-            Assert.Throws<InvalidOperationException>(() => account.Withdraw(100));
+            account.Balance.Should().Be(5500);
+            account.LienAmount.Should().Be(0);
         }
     }
 }

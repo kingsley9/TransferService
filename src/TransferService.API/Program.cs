@@ -1,12 +1,16 @@
 using System.Reflection;
 using System.Text;
 using System.Text.Json.Serialization;
+using FluentValidation;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Scalar.AspNetCore;
 using Scrutor;
+using TransferService.Application;
 using TransferService.Application.Interfaces;
 using TransferService.Application.Services;
 using TransferService.Domain.Rules;
@@ -38,12 +42,24 @@ builder.Services.AddRouting(options =>
 // Enable Logging
 builder.Logging.AddConsole();
 
+// Register Account/transaction rules
 builder.Services.AddScoped<IAccountRule, MaxBalanceTierOneRule>();
 builder.Services.AddScoped<IAccountRule, MaxBalanceTierTwoRule>();
 builder.Services.AddScoped<IAccountRule, MaxSingleDepositTierOneRule>();
 builder.Services.AddScoped<IAccountRule, MaxSingleDepositTierTwoRule>();
 
-// Add repositories and services
+// Register mediatR services and validators
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssemblies(
+        typeof(Program).Assembly,
+        typeof(ApplicationAssemblyMarker).Assembly
+    )
+);
+builder.Services.AddValidatorsFromAssemblies(
+    [typeof(Program).Assembly, typeof(ApplicationAssemblyMarker).Assembly]
+);
+
+// Register repositories and services
 builder.Services.AddScoped<IAccountNumberGenerator, AccountNumberGenerator>();
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -52,7 +68,8 @@ builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
-builder.Services.AddScoped<AccountValidator>();
+builder.Services.AddScoped<IPinService, PinService>();
+builder.Services.AddScoped<IAccountValidator, AccountValidator>();
 
 builder.Services.AddOpenApi();
 builder.Services.AddEndpointsApiExplorer();

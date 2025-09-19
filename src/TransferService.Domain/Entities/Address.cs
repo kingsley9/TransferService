@@ -8,7 +8,7 @@ namespace TransferService.Domain.Entities
         public string PostalCode { get; } = string.Empty;
         public string Country { get; } = string.Empty;
 
-        public Address() { } // needed for EF Core
+        public Address() { }
 
         public Address(string street, string city, string state, string postalCode, string country)
         {

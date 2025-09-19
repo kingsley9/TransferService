@@ -5,7 +5,7 @@ namespace TransferService.Domain.Entities
 {
     public class Transaction
     {
-        public int TransactionId { get; private set; }
+        public int TransactionId { get; internal set; }
         public int AccountId { get; private set; }
         public int? TargetAccountId { get; private set; }
         public decimal Amount { get; private set; }
@@ -28,6 +28,7 @@ namespace TransferService.Domain.Entities
             TargetAccountId = targetAccountId;
             Amount = amount;
             Type = type;
+            Status = TransactionStatus.Pending;
             Timestamp = DateTime.UtcNow;
         }
 
@@ -44,6 +45,15 @@ namespace TransferService.Domain.Entities
         public static Transaction CreateTransfer(int accountId, decimal amount, int targetAccountId)
         {
             return new Transaction(accountId, amount, TransactionType.Transfer, targetAccountId);
+        }
+
+        public void SetStatus(TransactionStatus newStatus)
+        {
+            if (Status != TransactionStatus.Pending)
+                throw new InvalidOperationException(
+                    "Transaction status can only be updated from pending state"
+                );
+            Status = newStatus;
         }
     }
 }
