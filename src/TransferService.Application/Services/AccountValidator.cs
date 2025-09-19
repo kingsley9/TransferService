@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TransferService.Application.Interfaces;
 using TransferService.Domain.Rules;
 
 namespace TransferService.Application.Services
 {
-    public class AccountValidator
+    public class AccountValidator : IAccountValidator
     {
         private readonly IEnumerable<IAccountRule> _rules;
 

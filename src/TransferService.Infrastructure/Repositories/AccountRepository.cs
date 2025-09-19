@@ -52,5 +52,10 @@ namespace TransferService.Infrastructure.Repositories
             _context.Accounts.RemoveRange(accounts);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<IEnumerable<Account>> GetByCustomerIdAsync(Guid customerId)
+        {
+            return await _context.Accounts.Where(x => x.CustomerId == customerId).ToListAsync();
+        }
     }
 }

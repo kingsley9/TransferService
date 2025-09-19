@@ -6,6 +6,7 @@ namespace TransferService.Application.Interfaces
     {
         Task<Account?> GetByIdAsync(int accountId);
         Task<IEnumerable<Account>> GetAllAsync();
+        Task<IEnumerable<Account>> GetByCustomerIdAsync(Guid customerId);
         Task<bool> ExistsAsync(string accountNumber);
         Task UpdateAsync(Account account);
         Task AddAsync(Account account);

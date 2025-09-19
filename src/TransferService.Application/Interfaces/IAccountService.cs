@@ -5,9 +5,9 @@ namespace TransferService.Application.Interfaces
 {
     public interface IAccountService
     {
-        Task<Account?> GetAccountByIdAsync(int accountId);
-        Task<IEnumerable<Account>> GetAllAccountsAsync();
-        Task<Account> CreateAccountAsync(
+        Task<AccountDetailsResponse?> GetAccountByIdAsync(int accountId);
+        Task<IEnumerable<AccountDetailsResponse>> GetAllAccountsAsync();
+        Task<AccountDetailsResponse> CreateAccountAsync(
             AccountRequest account,
             string ownerName,
             string username,
@@ -16,6 +16,7 @@ namespace TransferService.Application.Interfaces
         Task<bool> UpdateAccountAsync(Account account);
         Task<bool> DeleteAccountAsync(int accountId);
         Task<decimal?> GetAccountBalanceAsync(int accountId);
-        Task<Account> GetOwnedAccountAsync(int accountId, string username);
+        Task<AccountDetailsResponse> GetOwnedAccountAsync(int accountId, string username);
+        Task ChangeAccountPinAsync(Account account, string currentPin, string newPin);
     }
 }

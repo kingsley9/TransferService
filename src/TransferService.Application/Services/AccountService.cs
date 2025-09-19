@@ -1,104 +1,97 @@
-using Microsoft.AspNetCore.Identity;
+using MediatR;
 using TransferService.Application.DTO;
+using TransferService.Application.Features.Accounts.Commands.ChangeAccountPin;
+using TransferService.Application.Features.Accounts.Commands.CreateAccount;
+using TransferService.Application.Features.Accounts.Commands.DeleteAccount;
+using TransferService.Application.Features.Accounts.Commands.UpdateAccount;
+using TransferService.Application.Features.Accounts.Queries.GetAccountBalance;
+using TransferService.Application.Features.Accounts.Queries.GetAccountById;
+using TransferService.Application.Features.Accounts.Queries.GetAllAccounts;
+using TransferService.Application.Features.Accounts.Queries.GetOwnedAccount;
 using TransferService.Application.Interfaces;
 using TransferService.Domain.Entities;
-using TransferService.Domain.Exceptions;
 
 namespace TransferService.Application.Services
 {
     public class AccountService : IAccountService
     {
-        private readonly IAccountRepository _accountRepo;
-        private readonly IAccountNumberGenerator _accountNumberGenerator;
-        private readonly PasswordHasher<Account> _passwordHasher = new();
+        private readonly IMediator _mediator;
 
-        public AccountService(
-            IAccountRepository accountRepository,
-            IAccountNumberGenerator accountNumberGenerator
-        )
+        public AccountService(IMediator mediator)
         {
-            _accountRepo = accountRepository;
-            _accountNumberGenerator = accountNumberGenerator;
+            _mediator = mediator;
         }
 
-        public async Task<Account?> GetAccountByIdAsync(int accountId) =>
-            await _accountRepo.GetByIdAsync(accountId);
+        public async Task<AccountDetailsResponse?> GetAccountByIdAsync(int accountId)
+        {
+            return await _mediator.Send(new GetAccountByIdQuery(accountId));
+        }
 
-        public async Task<IEnumerable<Account>> GetAllAccountsAsync() =>
-            await _accountRepo.GetAllAsync();
+        public async Task<IEnumerable<AccountDetailsResponse>> GetAllAccountsAsync()
+        {
+            return await _mediator.Send(new GetAllAccountsQuery());
+        }
 
-        public async Task<Account> CreateAccountAsync(
+        public async Task<AccountDetailsResponse> CreateAccountAsync(
             AccountRequest account,
             string ownerName,
             string username,
             Guid customerId
         )
         {
-            var accountNumber = await _accountNumberGenerator.GenerateAsync(
-                account.BankCode,
-                account.SchemeCode
-            );
+            if (account == null)
+                throw new ArgumentNullException(nameof(account));
 
-            var newAccount = new Account(
-                ownerName,
-                username,
-                account.Type,
-                account.Balance,
-                account.Tier,
-                account.Currency,
-                customerId,
-                accountNumber,
-                account.Pin
-            );
-            SetPin(newAccount, account.Pin);
-
-            await _accountRepo.AddAsync(newAccount);
-            return newAccount;
+            var command = new CreateAccountCommand
+            {
+                Account = account,
+                OwnerName = ownerName,
+                Username = username,
+                CustomerId = customerId,
+            };
+            return await _mediator.Send(command);
         }
 
         public async Task<bool> UpdateAccountAsync(Account updatedAccount)
         {
-            var existingAccount = await _accountRepo.GetByIdAsync(updatedAccount.AccountId);
-            if (existingAccount is null)
-                return false;
-
-            existingAccount.AccountName = updatedAccount.AccountName;
-
-            await _accountRepo.UpdateAsync(existingAccount);
-            return true;
+            var command = new UpdateAccountCommand
+            {
+                AccountId = updatedAccount.AccountId,
+                AccountName = updatedAccount.AccountName,
+                Type = updatedAccount.Type,
+                Tier = updatedAccount.Tier,
+            };
+            var result = await _mediator.Send(command);
+            return result != null;
         }
 
         public async Task<bool> DeleteAccountAsync(int accountId)
         {
-            var account = await _accountRepo.GetByIdAsync(accountId);
-            if (account is null)
-                return false;
-
-            await _accountRepo.DeleteAsync(accountId);
-            return true;
+            return await _mediator.Send(new DeleteAccountCommand(accountId));
         }
 
         public async Task<decimal?> GetAccountBalanceAsync(int accountId)
         {
-            var account = await _accountRepo.GetByIdAsync(accountId);
-            return account?.Balance;
+            return await _mediator.Send(new GetAccountBalanceQuery(accountId));
         }
 
-        public async Task<Account> GetOwnedAccountAsync(int accountId, string username)
+        public async Task<AccountDetailsResponse> GetOwnedAccountAsync(
+            int accountId,
+            string username
+        )
         {
-            var account = await _accountRepo.GetByIdAsync(accountId);
-            if (account == null)
-                throw new NotFoundException("Account not found");
-            if (account.Username != username)
-                throw new ForbiddenException("You do not own this account");
-
-            return account;
+            return await _mediator.Send(new GetOwnedAccountQuery(accountId, username));
         }
 
-        public void SetPin(Account account, string rawPin)
+        public async Task ChangeAccountPinAsync(Account account, string currentPin, string newPin)
         {
-            var hashedPin = _passwordHasher.HashPassword(account, rawPin);
-            account.UpdatePin(hashedPin);
+            var command = new ChangeAccountPinCommand
+            {
+                AccountId = account.AccountId,
+                CurrentPin = currentPin,
+                NewPin = newPin,
+            };
+            await _mediator.Send(command);
         }
     }
 }
